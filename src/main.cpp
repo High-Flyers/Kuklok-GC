@@ -4,15 +4,25 @@
 
 #include "imu.h"
 #include "regulator.h"
+#include "actuator.h"
+#include "state.h"
 
 #define LOOP_FREQ 100 //Hz
 
 #define PIN_MOT_1_A 17 //silnik 1 przód
-#define PIN_MOT_1_B 19 //silnik 1 tył
+#define PIN_MOT_1_B 19 //silnik 1 przód
+#define PIN_MOT_2_A 20 //silnik 2 przód
+#define PIN_MOT_2_B 18 //silnik 2 tył
+
+
 
 Madgwick filter;
-Regulator reg1(4,8,0.2);
+Regulator reg_roll(2,4,0.15); //2,4,0.15
+Regulator reg_pitch(2,4,0.15);
+Actuator servo_roll;
+Actuator servo_pitch;
 unsigned long microsPerReading, microsPrevious;
+
 
 void setup() {
   Serial.begin(115200);
@@ -22,111 +32,51 @@ void setup() {
   
   IMU::begin();
   filter.begin(LOOP_FREQ);
+
+  servo_roll.init(PIN_MOT_1_A, PIN_MOT_1_B);
+  servo_pitch.init(PIN_MOT_2_B, PIN_MOT_2_A);
   
   microsPerReading = 1000000 / LOOP_FREQ;
   microsPrevious = micros();
-  
-  pinMode(PIN_MOT_1_A, OUTPUT);
-  pinMode(PIN_MOT_1_B, OUTPUT);
-  analogReadResolution(12);
-  analogWriteFrequency(PIN_MOT_1_A, 500);
-  
-  delay(2000);
-  return;
 
-  int pwm_val = 200;
-  float vels[25];
-  while(1){
-
-    uint16_t angle = analogRead(0);
-    unsigned long start_time = millis();
-    
-    while(angle>2500){
-      analogWrite(PIN_MOT_1_A,pwm_val);
-      analogWrite(PIN_MOT_1_B,0);
-      delay(1);
-      angle = analogRead(0);
-
-      if(angle > 4000 || angle < 2000){
-        analogWrite(PIN_MOT_1_A,0);
-        analogWrite(PIN_MOT_1_B,0);
-        return;
-      }
-    }
-    while(angle<3500){
-      analogWrite(PIN_MOT_1_A,0);
-      analogWrite(PIN_MOT_1_B,pwm_val);
-      delay(1);
-      angle = analogRead(0);
-
-      if(angle > 4000 || angle < 2000){
-        analogWrite(PIN_MOT_1_A,0);
-        analogWrite(PIN_MOT_1_B,0);
-        return;
-      }
-    }
-    analogWrite(PIN_MOT_1_A,0);
-    analogWrite(PIN_MOT_1_B,0);
-
-    int duration = millis()-start_time;
-    float velocity = 1000.0/duration;
-
-    if(pwm_val <=175 && pwm_val >=50)
-      vels[(pwm_val-50)/5]=velocity;
-
-    Serial.printf("%d: %d \n", pwm_val, duration);
-
-    if(duration > 1000*2 || pwm_val <=50)
-      break;
-
-    pwm_val -= 5;
-
-
-  }
-
-
-  for (int i = 0; i < 25; i++)
-  {
-    Serial.printf("%d: %f \n", i, vels[i]);
-  }
-  
-
+  xTaskCreatePinnedToCore(STATE::stateTask, "State Task", 2048, NULL, 10, NULL, 0);
 }
 
 void loop() {
 
   if (micros() - microsPrevious >= microsPerReading) {
     unsigned long micros_start = micros();
-    uint16_t angle = analogRead(0);
-    int u;
+
+    uint16_t angle_roll = analogRead(0);
+    uint16_t angle_pitch = analogRead(1);     
+    
+    int ur, up;
 
     IMU::read();
 
     filter.updateIMU(IMU::gyro_x, IMU::gyro_y, IMU::gyro_z, IMU::acc_x, IMU::acc_y, IMU::acc_z);
 
-    
-    if(angle > 3500 || angle < 2000)
-    {
-      analogWrite(PIN_MOT_1_A,0);
-      analogWrite(PIN_MOT_1_B,0);
-    }else
-    {
-      u = reg1.regulate_PID(0,filter.getRoll(),LOOP_FREQ);
+    ur = reg_roll.regulate_PID(STATE::setpoint_roll,filter.getRoll(),LOOP_FREQ);
+    up = reg_pitch.regulate_PID(STATE::setpoint_pitch,filter.getPitch(),LOOP_FREQ);
 
-      if(u > 95 && u < 105)
-      {
-        analogWrite(PIN_MOT_1_A,0);
-        analogWrite(PIN_MOT_1_B,0);
-      }else
-      {
-        analogWrite(PIN_MOT_1_A,max(0,-min(0,u-150)));
-        analogWrite(PIN_MOT_1_B,max(0,max(0,u-50)));
-      }
+    if(angle_roll > 3500 || angle_roll < 2000)
+    {
+      servo_roll.set_vel(0);
+    }
+    if(angle_pitch > 350 || angle_roll < 200)
+    {
+      servo_pitch.set_vel(0);
     }
 
-    Serial.printf("$%f %f %f %d;", 10*filter.getRoll(), filter.getPitch(), filter.getYaw(), u);
+    
+    servo_roll.set_vel(ur);
+    servo_pitch.set_vel(up);
+
+    // Serial.printf("$%f %f %d %d;", 10*filter.getPitch(), 10*filter.getRoll(),angle_pitch, angle_roll);
+    // Serial.printf("$%f %f %f %d %d;", 10*filter.getRoll(), filter.getPitch(), filter.getYaw(), u, uu);
     // Serial.printf("$%d;", angle);
     // Serial.println(micros() - micros_start);
+
 
     microsPrevious = microsPrevious + microsPerReading;
   }
