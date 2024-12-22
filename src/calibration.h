@@ -8,7 +8,7 @@
 #define CALIB_DELAY_ROLL    3000 / portTICK_PERIOD_MS
 #define CALIB_DELAY_PITCH   5000 / portTICK_PERIOD_MS
 #define CALIB_STEP          5
-#define CALIB_CLEANUP_TRES  3
+#define CALIB_CLEANUP_TRES  2
 
 #define CALIB_GRID_SIZE     (CALIB_RANGE / CALIB_STEP * 2) + 1
 
@@ -16,6 +16,7 @@ namespace CALIB
 {
     void grid_calib();
     void cleanup_grid();
+    bool get_pitch_roll(int ap, int ar, float &pitch, float &roll);
 }
 
 

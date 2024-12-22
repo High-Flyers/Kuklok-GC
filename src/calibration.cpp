@@ -4,8 +4,20 @@
 
 namespace CALIB
 {
-    uint16_t calib_grid_roll[CALIB_GRID_SIZE][CALIB_GRID_SIZE];
-    uint16_t calib_list_pitch[CALIB_GRID_SIZE];
+    // uint16_t calib_grid_roll[CALIB_GRID_SIZE][CALIB_GRID_SIZE];
+    uint16_t calib_grid_roll[CALIB_GRID_SIZE][CALIB_GRID_SIZE] = {  //[roll][pitch]
+        {2353, 2368, 2321, 2240, 2128, 2016, 1888, 1744, 1584},
+        {2500, 2480, 2449, 2352, 2257, 2129, 2000, 1776, 1712},
+        {2593, 2593, 2576, 2465, 2384, 2241, 2096, 1985, 1824},
+        {2721, 2704, 2673, 2593, 2497, 2353, 2241, 2081, 1937},
+        {2864, 2784, 2768, 2737, 2593, 2496, 2336, 2193, 1968},
+        {2977, 2976, 2929, 2881, 2736, 2641, 2449, 2273, 2049},
+        {3121, 3136, 3040, 2961, 2896, 2737, 2592, 2368, 2112},
+        {3232, 3232, 3200, 3121, 2977, 2848, 2624, 2464, 2192},
+        {3360, 3329, 3312, 3233, 3153, 2912, 2752, 2576, 2353}
+    };
+    // uint16_t calib_list_pitch[CALIB_GRID_SIZE];
+    uint16_t calib_list_pitch[CALIB_GRID_SIZE] = {3312, 3185, 2961, 2801, 2560, 2385, 2160, 1968, 1680};
 
     void step_up(int8_t &value)
     {
@@ -104,5 +116,66 @@ namespace CALIB
                     }
             }
         }
+
+        Serial.print("avg_diff:");
+        Serial.println(avg_dif);
+        Serial.println("Cleand up:");
+        for (int i = 0; i < CALIB_GRID_SIZE; i++)
+        {
+            for (int z = 0; z < CALIB_GRID_SIZE; z++)
+            {
+                Serial.print(calib_grid_roll[i][z]);
+                Serial.print("; ");
+            }
+            Serial.println(" ");
+        }
+
+        for (int i = 0; i < CALIB_GRID_SIZE; i++)
+        {
+            Serial.print(calib_list_pitch[i]);
+            Serial.print("; ");
+        }
+        Serial.println(" ");
+    }
+
+    //Calculates gimbal pitch and roll angles based on actuator positions
+    bool get_pitch_roll(int ap, int ar, float &pitch, float &roll)
+    {
+        int8_t pitch_range = -1;
+        for (uint8_t i = 0; i < CALIB_GRID_SIZE-1; i++)
+        {
+            if(calib_list_pitch[i] >= ap && calib_list_pitch[i+1] < ap)
+            {
+                pitch_range = i;
+                break;
+            }
+        }
+        
+        if(pitch_range == -1) return false;
+
+        float pitch_ratio = 1.0*(ap-calib_list_pitch[pitch_range]) / (calib_list_pitch[pitch_range+1]-calib_list_pitch[pitch_range]);
+        pitch = (1.0*(pitch_range+pitch_ratio)*CALIB_STEP)-CALIB_RANGE;
+
+        int8_t roll_range = -1;
+        float roll_p1, roll_p2;
+        for (uint8_t i = 0; i < CALIB_GRID_SIZE-1; i++)
+        {
+            roll_p1 = calib_grid_roll[i][pitch_range] + (pitch_ratio*(calib_grid_roll[i][pitch_range+1]-calib_grid_roll[i][pitch_range]));
+            roll_p2 = calib_grid_roll[i+1][pitch_range] + (pitch_ratio*(calib_grid_roll[i+1][pitch_range+1]-calib_grid_roll[i+1][pitch_range]));
+            if(roll_p1 >= ar && roll_p2 < ar ||
+                roll_p1 <= ar && roll_p2 > ar)
+            {
+                roll_range = i;
+                break;
+            }
+        }
+
+        if(roll_range == -1) return false;
+
+        float roll_ratio = (ar - roll_p1) / (roll_p2-roll_p1);
+        roll = (1.0*(roll_range+roll_ratio)*CALIB_STEP)-CALIB_RANGE;
+
+        return true;
+        
     }
 }

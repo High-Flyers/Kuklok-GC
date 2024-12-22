@@ -9,6 +9,9 @@ namespace STATE{
     extern int8_t setpoint_pitch;
     extern int8_t setpoint_roll;
 
+    extern float gimbal_pitch_angle;
+    extern float gimbal_roll_angle;
+
     void stateTask(void *parameter);
 
 }

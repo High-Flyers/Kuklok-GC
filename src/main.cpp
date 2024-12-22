@@ -29,6 +29,7 @@ void setup() {
 
   Wire.begin();
   Wire.setClock(400000UL); // 400kHz
+
   
   IMU::begin();
   filter.begin(LOOP_FREQ);
@@ -40,6 +41,11 @@ void setup() {
   microsPrevious = micros();
 
   xTaskCreatePinnedToCore(STATE::stateTask, "State Task", 2048, NULL, 10, NULL, 0);
+
+  delay(8000);
+  Serial.println("SETUP DONE");
+
+  CALIB::cleanup_grid();
 }
 
 void loop() {
@@ -48,7 +54,9 @@ void loop() {
     unsigned long micros_start = micros();
 
     uint16_t angle_roll = analogRead(0);
-    uint16_t angle_pitch = analogRead(1);     
+    uint16_t angle_pitch = analogRead(1);
+    
+    CALIB::get_pitch_roll(angle_pitch, angle_roll, STATE::gimbal_pitch_angle, STATE::gimbal_roll_angle);
     
     int ur, up;
 
@@ -63,16 +71,16 @@ void loop() {
     {
       servo_roll.set_vel(0);
     }
-    if(angle_pitch > 350 || angle_roll < 200)
+    if(angle_pitch > 3600 || angle_roll < 1800)
     {
       servo_pitch.set_vel(0);
     }
 
-    
     servo_roll.set_vel(ur);
     servo_pitch.set_vel(up);
 
-    // Serial.printf("$%f %f %d %d;", 10*filter.getPitch(), 10*filter.getRoll(),angle_pitch, angle_roll);
+    Serial.printf("$%f %f %d %d %f %f;", filter.getPitch(), filter.getRoll(), angle_pitch, angle_roll, STATE::gimbal_pitch_angle, STATE::gimbal_roll_angle);
+    // Serial.printf("$%f %f %d %d;\n", 10*filter.getPitch(), 10*filter.getRoll(),angle_pitch, angle_roll);
     // Serial.printf("$%f %f %f %d %d;", 10*filter.getRoll(), filter.getPitch(), filter.getYaw(), u, uu);
     // Serial.printf("$%d;", angle);
     // Serial.println(micros() - micros_start);
