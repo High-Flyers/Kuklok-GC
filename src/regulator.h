@@ -15,6 +15,7 @@ public:
     Regulator(float P, float I, float D);
 
     int regulate_PID(int setpoint, int y, int last_loop_time);
+    float regulate_PID(float setpoint, float y, int last_loop_time);
 };
 
 

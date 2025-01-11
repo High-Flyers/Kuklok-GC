@@ -17,6 +17,10 @@ namespace CALIB
     void grid_calib();
     void cleanup_grid();
     bool get_pitch_roll(int ap, int ar, float &pitch, float &roll);
+    void get_roll_gradients(float pitch, float roll, float &gp, float &gr);
+    void get_pitch_gradient(float pitch, float &gp);
+    
+    void get_actuator_velocities(float ap, float ar, float pitch_rate, float roll_rate, int &pitch_act_vel, int &roll_act_vel);
 }
 
 

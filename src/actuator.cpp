@@ -34,6 +34,29 @@ void Actuator::set_vel(uint8_t vel)
     }
 }
 
+void Actuator::set_vel_new(int vel)
+{
+    vel = vel/15;
+
+    if(vel > -SERVO_SILENTZONE && vel < SERVO_SILENTZONE)
+    {
+        _set_pwm(0,0);
+        return;
+    }
+
+    if(vel<0)
+    {
+        _out_pwm = -vel;
+        _out_pwm+=SERVO_DEADZONE;
+        _set_pwm(_out_pwm,0);
+    }else
+    {
+        _out_pwm = vel;
+        _out_pwm+=SERVO_DEADZONE;
+        _set_pwm(0, _out_pwm);
+    }
+}
+
 void Actuator::_set_pwm(uint8_t pwm_a, uint8_t pwm_b)
 {
     analogWrite(_pin_a,pwm_a);

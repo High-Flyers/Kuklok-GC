@@ -178,4 +178,70 @@ namespace CALIB
         return true;
         
     }
+
+    
+    void get_roll_gradients(float pitch, float roll, float &gp, float &gr)
+    {
+        int pitch_range = (int)round((pitch+CALIB_RANGE)/CALIB_STEP);
+        int roll_range = (int)round((roll+CALIB_RANGE)/CALIB_STEP);
+
+        if(pitch_range == 0)
+        {
+            gp = 1.0*(calib_grid_roll[roll_range][0] - calib_grid_roll[roll_range][1])/CALIB_STEP;
+        }else if(pitch_range == CALIB_GRID_SIZE-1)
+        {
+            gp = 1.0*(calib_grid_roll[roll_range][CALIB_GRID_SIZE-2] - calib_grid_roll[roll_range][CALIB_GRID_SIZE-1])/CALIB_STEP;
+        }else
+        {
+            gp = 1.0*(calib_grid_roll[roll_range][pitch_range-1] - calib_grid_roll[roll_range][pitch_range+1])/(CALIB_STEP*2);
+        }
+
+        if(roll_range == 0)
+        {
+            gr = 1.0*(calib_grid_roll[1][pitch_range] - calib_grid_roll[0][pitch_range])/CALIB_STEP;
+        }else if(roll_range == CALIB_GRID_SIZE-1)
+        {
+            gr = 1.0*(calib_grid_roll[CALIB_GRID_SIZE-1][pitch_range] - calib_grid_roll[CALIB_GRID_SIZE-2][pitch_range])/CALIB_STEP;
+        }else
+        {
+            gr = 1.0*(calib_grid_roll[roll_range+1][pitch_range] - calib_grid_roll[roll_range-1][pitch_range])/(CALIB_STEP*2);
+        }
+    }
+    
+    void get_pitch_gradient(float pitch, float &gp)
+    {
+        int pitch_range = (int)round((pitch+CALIB_RANGE)/CALIB_STEP);
+        
+        if(pitch_range == 0)
+        {
+            gp = 1.0*(calib_list_pitch[0] - calib_list_pitch[1])/CALIB_STEP;
+        }else if(pitch_range == CALIB_GRID_SIZE-1)
+        {
+            gp = 1.0*(calib_list_pitch[CALIB_GRID_SIZE-2] - calib_list_pitch[CALIB_GRID_SIZE-1])/CALIB_STEP;
+        }else
+        {
+            gp = 1.0*(calib_list_pitch[pitch_range-1] - calib_list_pitch[pitch_range+1])/(CALIB_STEP*2);
+        }
+    }
+
+    int sign(int val)
+    {
+        if (val < 0) return -1;
+        if (val==0) return 0;
+        return 1;
+    }
+
+    void get_actuator_velocities(float ap, float ar, float pitch_rate, float roll_rate, int &pitch_act_vel, int &roll_act_vel)
+    {
+        float pitch, roll;
+        get_pitch_roll(ap,ar,pitch,roll);
+
+        float pitch_gp, roll_gp, roll_gr;
+        get_roll_gradients(pitch,roll,roll_gp,roll_gr);
+        get_pitch_gradient(pitch, pitch_gp);
+
+        pitch_act_vel = (int) (pitch_rate * pitch_gp);
+        // roll_act_vel = (int) (roll_rate*roll_gr);
+        roll_act_vel = (int) (sign(roll_rate) * sqrt((pitch_rate*roll_gp * pitch_rate*roll_gp) + (roll_rate*roll_gr * roll_rate*roll_gr)));
+    }
 }
