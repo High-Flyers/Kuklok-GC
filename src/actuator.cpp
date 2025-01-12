@@ -13,30 +13,8 @@ void Actuator::init(uint8_t pin_a, uint8_t pin_b)
         analogWriteFrequency(_pin_b, 2000);
 }
 
-void Actuator::set_vel(uint8_t vel)
+void Actuator::set_vel(int16_t vel)
 {
-    if(vel > 100-SERVO_SILENTZONE && vel < 100+SERVO_SILENTZONE)
-    {
-        _set_pwm(0,0);
-        return;
-    }
-
-    if(vel<100)
-    {
-        _out_pwm = 100-vel;
-        _out_pwm+=SERVO_DEADZONE;
-        _set_pwm(_out_pwm,0);
-    }else
-    {
-        _out_pwm = vel-100;
-        _out_pwm+=SERVO_DEADZONE;
-        _set_pwm(0, _out_pwm);
-    }
-}
-
-void Actuator::set_vel_new(int vel)
-{
-    vel = vel/15;
 
     if(vel > -SERVO_SILENTZONE && vel < SERVO_SILENTZONE)
     {

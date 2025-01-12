@@ -7,24 +7,24 @@
 #include "actuator.h"
 #include "state.h"
 
-#define LOOP_FREQ 100 //Hz
+#define LOOP_FREQ 200 //Hz
 
 #define PIN_MOT_1_A 17 //silnik 1 przód
 #define PIN_MOT_1_B 19 //silnik 1 przód
 #define PIN_MOT_2_A 20 //silnik 2 przód
 #define PIN_MOT_2_B 18 //silnik 2 tył
 
-
+#define MAX_ROLL_ANGLE 18
+#define MAX_PITCH_ANGLE 18
 
 Madgwick filter;
-Regulator reg_roll(2,4,0.15); //2,4,0.15
-Regulator reg_pitch(2,4,0.15);
-Regulator reg_roll2(1,0,0); //2,4,0.15
-Regulator reg_pitch2(1,0,0);
+Regulator reg_roll(0.7,10,0); //2,4,0.15
+Regulator reg_pitch(0.7,10,0);
 Actuator servo_roll;
 Actuator servo_pitch;
 unsigned long microsPerReading, microsPrevious;
 
+void constrain_to_angles(float &, float &);
 
 void setup() {
   Serial.begin(115200);
@@ -47,20 +47,6 @@ void setup() {
   delay(8000);
   Serial.println("SETUP DONE");
 
-  CALIB::cleanup_grid();
-
-  for (int i = -20; i < 20; i++)
-  {
-    for (int z = -20; z < 20; z++)
-    {
-      float gp, gr;
-      CALIB::get_roll_gradients(i,z,gp, gr);
-      Serial.print(gr);
-      Serial.print(", ");
-    }
-    Serial.println(" ");
-  }
-  
 }
 
 void loop() {
@@ -73,43 +59,49 @@ void loop() {
     
     CALIB::get_pitch_roll(angle_pitch, angle_roll, STATE::gimbal_pitch_angle, STATE::gimbal_roll_angle);
     
-    int ur, up, act_r, act_p;
     float u_r, u_p;
+    int act_r, act_p;
 
     IMU::read();
 
     filter.updateIMU(IMU::gyro_x, IMU::gyro_y, IMU::gyro_z, IMU::acc_x, IMU::acc_y, IMU::acc_z);
 
+    u_r = reg_roll.regulate_PID((float)STATE::setpoint_roll,filter.getRoll(),LOOP_FREQ);
+    u_p = reg_pitch.regulate_PID((float)STATE::setpoint_pitch,filter.getPitch(),LOOP_FREQ);
 
-    ur = reg_roll.regulate_PID(STATE::setpoint_roll,(int)filter.getRoll(),LOOP_FREQ);
-    up = reg_pitch.regulate_PID(STATE::setpoint_pitch,(int)filter.getPitch(),LOOP_FREQ);
-
-    u_r = reg_roll2.regulate_PID((float)STATE::setpoint_roll,filter.getRoll(),LOOP_FREQ);
-    u_p = reg_pitch2.regulate_PID((float)STATE::setpoint_pitch,filter.getPitch(),LOOP_FREQ);
-
+    constrain_to_angles(u_r, u_p);
 
     CALIB::get_actuator_velocities(angle_pitch,angle_roll,u_p,u_r,act_p,act_r);
 
-    if(angle_roll > 3500 || angle_roll < 2000)
-    {
-      servo_roll.set_vel(0);
-    }
-    if(angle_pitch > 3600 || angle_roll < 1800)
-    {
-      servo_pitch.set_vel(0);
-    }
+    act_p /=20;
+    act_r /=20;
 
-    servo_roll.set_vel_new(act_r);
-    servo_pitch.set_vel_new(act_p);
+    servo_roll.set_vel(act_r);
+    servo_pitch.set_vel(act_p);
 
-    Serial.printf("$%f %f %d %d %d %d;", filter.getPitch(), filter.getRoll(), up, ur, act_p/15, act_r/15);
-    // Serial.printf("$%f %f %d %d %f %f;", filter.getPitch(), filter.getRoll(), angle_pitch, angle_roll, STATE::gimbal_pitch_angle, STATE::gimbal_roll_angle);
-    // Serial.printf("$%f %f %d %d;\n", 10*filter.getPitch(), 10*filter.getRoll(),angle_pitch, angle_roll);
-    // Serial.printf("$%f %f %f %d %d;", 10*filter.getRoll(), filter.getPitch(), filter.getYaw(), u, uu);
-    // Serial.printf("$%d;", angle);
-    // Serial.println(micros() - micros_start);
+    Serial.printf("$%f %f %d %d;", filter.getPitch(), filter.getRoll(), act_p, act_r);
 
 
     microsPrevious = microsPrevious + microsPerReading;
   }
+}
+
+void constrain_to_angles(float &roll, float &pitch)
+{
+    if(STATE::gimbal_roll_angle > MAX_ROLL_ANGLE)
+    {
+      roll = min(roll,0.0f);
+    }
+    if(STATE::gimbal_roll_angle < -MAX_ROLL_ANGLE)
+    {
+      roll = max(roll,0.0f);
+    }
+    if(STATE::gimbal_pitch_angle > MAX_PITCH_ANGLE)
+    {
+      pitch = min(pitch,0.0f);
+    }
+    if(STATE::gimbal_pitch_angle < -MAX_PITCH_ANGLE)
+    {
+      pitch = max(pitch,0.0f);
+    }
 }

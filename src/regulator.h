@@ -2,6 +2,7 @@
 #define REGULATOR_H
 
 #include "Arduino.h"
+#include "state.h"
 
 
 class Regulator
@@ -16,6 +17,7 @@ public:
 
     int regulate_PID(int setpoint, int y, int last_loop_time);
     float regulate_PID(float setpoint, float y, int last_loop_time);
+    void skip_integration();
 };
 
 

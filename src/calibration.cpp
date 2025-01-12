@@ -241,7 +241,7 @@ namespace CALIB
         get_pitch_gradient(pitch, pitch_gp);
 
         pitch_act_vel = (int) (pitch_rate * pitch_gp);
-        // roll_act_vel = (int) (roll_rate*roll_gr);
-        roll_act_vel = (int) (sign(roll_rate) * sqrt((pitch_rate*roll_gp * pitch_rate*roll_gp) + (roll_rate*roll_gr * roll_rate*roll_gr)));
+        roll_act_vel = (int) ((roll_rate*roll_gr) - (0.5*pitch_rate*roll_gp));
+        // roll_act_vel = (int) (sign(roll_rate) * sqrt((pitch_rate*roll_gp * pitch_rate*roll_gp) + (roll_rate*roll_gr * roll_rate*roll_gr)));
     }
 }

@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-#define SERVO_DEADZONE 25
-#define SERVO_SILENTZONE 5
+#define SERVO_DEADZONE 22
+#define SERVO_SILENTZONE 3
 
 class Actuator{
 
@@ -15,8 +15,7 @@ class Actuator{
 
 public:
     void init(uint8_t pin_a, uint8_t pin_b);
-    void set_vel(uint8_t vel); //0-200 -> 100 is idle
-    void set_vel_new(int vel); //0-200 -> 100 is idle
+    void set_vel(int16_t vel);
 
 private:
     void _set_pwm(uint8_t pwm_a, uint8_t pwm_b);

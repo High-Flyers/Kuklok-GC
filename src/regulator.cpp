@@ -1,6 +1,6 @@
 #include "regulator.h"
 
-#define MAX_REG_OUTPUT 60
+#define MAX_REG_OUTPUT 30
 
 Regulator::Regulator()
 {
@@ -47,6 +47,7 @@ int Regulator::regulate_PID(int setpoint, int y, int last_loop_time)
     return u;
 }
 
+
 float Regulator::regulate_PID(float setpoint, float y, int last_loop_time)
 {
     float err = setpoint - y;
@@ -63,11 +64,9 @@ float Regulator::regulate_PID(float setpoint, float y, int last_loop_time)
     if(_d>0)
     {
         d_term = _d*(_last_err - err);
-        _last_err = err;
     }
+    _last_err = err;
 
-    //Regulator has a bias of 100 witch helps with response times itp.
-    //It is not something normal PIDs have, but it works for me.
     float u = _p*(p_term + i_term + d_term);
 
     u = constrain(u, -MAX_REG_OUTPUT, MAX_REG_OUTPUT);
@@ -76,4 +75,10 @@ float Regulator::regulate_PID(float setpoint, float y, int last_loop_time)
         _err_sum -= err;
 
     return u;
+}
+
+void Regulator::skip_integration()
+{
+    if(_i>0)
+        _err_sum-= _last_err;
 }
